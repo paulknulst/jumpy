@@ -1,11 +1,13 @@
-  import kaboom from "kaboom";
+import kaboom from "kaboom";
 
 const FLOOR_HEIGHT = 48;
 const JUMP_FORCE = 800;
 const SPEED = 300;
 
 // initialize context
-kaboom();
+kaboom({
+  background: [ 128, 128, 128, ]
+});
 
 
 // load assets
@@ -17,7 +19,24 @@ scene("game", () => {
   // keep track of score
   let score = 0;
 
-  let hp = 8
+  let hp = 8;
+
+  let timeValue = 0;
+
+  const scoreLabel = add([
+		text("Score: " + score),
+		pos(48, 24),
+	]);
+
+  const lifeLabel = add([
+    text("HP: " + hp),
+    pos(520, 24)
+  ])
+
+  const timeLabel = add([
+    text("Time: " + timeValue),
+    pos(48, 96)
+  ])
 
 	// define gravity
 	gravity(2400);
@@ -42,6 +61,7 @@ scene("game", () => {
 		color(127, 200, 255),
 	]);
 
+  // wall left
   add([
 		rect(FLOOR_HEIGHT, height() + FLOOR_HEIGHT),
 		outline(4),
@@ -53,6 +73,18 @@ scene("game", () => {
     "wall"
 	]);
 
+  // wall right
+  add([
+		rect(FLOOR_HEIGHT, height() + FLOOR_HEIGHT),
+		outline(4),
+		pos(width(), height()),
+		origin("botleft"),
+		area(),
+		solid(),
+		color(127, 200, 255),
+    "wall2"
+	]);
+
 	function jump() {
 		if (player.grounded()) {
 			player.jump(JUMP_FORCE);
@@ -61,17 +93,31 @@ scene("game", () => {
 
 	// jump when user press space
 	keyPress("space", jump);
+  keyPress("up", jump)
 	mouseClick(jump);
 
 	function spawnTree() {
 		// add tree obj
+
+    if(score <= 25) {
+      obstacleColor = color(255, 120, 255)
+    } else if (score <= 50) {
+      obstacleColor = color(255, 140, 0)
+    } else if (score <= 100) {
+      obstacleColor = color(149, 50, 0)
+    } else if (score <= 150) {
+      obstacleColor = color(120, 255, 0)
+    } else {
+      obstacleColor = color(rand(0, 255), rand(0, 255), rand(0, 255))
+    }
+
 		const tree = add([
 			rect(48, rand(32, 96)),
 			area(),
 			outline(4),
 			pos(width(), height() - FLOOR_HEIGHT),
 			origin("botleft"),
-			color(255, 180, 255),
+			obstacleColor,
 			move(LEFT, score*2 + SPEED),
 			"tree",
 		]);
@@ -80,7 +126,7 @@ scene("game", () => {
       destroy(tree)
       score++;
 		  scoreLabel.text = "Score: " + score;
-      play("hit", {
+      play("score", {
         volume: 0.5,
         detune: -1200,
       });
@@ -92,6 +138,15 @@ scene("game", () => {
 
 	// start spawning trees
 	spawnTree();
+
+  function startTime() {
+    timeValue++
+    timeLabel.text = "Time: " + timeValue
+    wait(1, startTime);
+  }
+
+  // start score
+  startTime();
 
   // onKeyDown() registers an event that runs every frame as long as user is holding a  certain key
   keyDown("left", () => {
@@ -112,34 +167,23 @@ scene("game", () => {
   })
 
 	// lose if player collides with any game obj with tag "tree"
-	player.collides("tree", () => {
+	player.collides("tree", (tree) => {
 		// go to "lose" scene and pass the score
     hp -=1
-    play("score", {
+    play("hit", {
       volume: 0.5,
       detune: -1200,
     });
     addKaboom(player.pos);
+    destroy(tree)
     lifeLabel.text =  "HP: " + hp;
     if(hp == 0) {
-      go("lose", score);
+      go("lose", score, timeValue);
     }
 	});
-
-	const scoreLabel = add([
-		text("Score: " + score),
-		pos(48, 24),
-	]);
-
-  const lifeLabel = add([
-    text("HP: " + hp),
-    pos(520, 24)
-  ])
-
 });
 
-scene("lose", (score) => {
-
+scene("lose", (score, timeValue) => {
 	add([
 		sprite("bean"),
 		pos(width() / 2, height() / 2 - 80),
@@ -149,9 +193,9 @@ scene("lose", (score) => {
 
 	// display score
 	add([
-		text(score),
+		text("Punkte: " + score + "\nZeit: " + timeValue + "s"),
 		pos(width() / 2, height() / 2 + 80),
-		scale(2),
+		scale(1),
 		origin("center"),
 	]);
 
@@ -161,4 +205,25 @@ scene("lose", (score) => {
 
 });
 
-go("game");
+scene("start", () => {
+  add([
+		sprite("bean"),
+		pos(width() / 2, height() / 2 - 80),
+		scale(2),
+		origin("center"),
+	]);
+
+	// display score
+	add([
+		text("Hi."),
+		pos(width() / 2, height() / 2 + 80),
+		scale(2),
+		origin("center"),
+	]);
+
+	// go back to game with space is pressed
+	keyPress("space", () => go("game"));
+	mouseClick(() => go("game"));
+})
+
+go("start");

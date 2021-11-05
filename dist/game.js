@@ -2734,13 +2734,28 @@ vec4 frag(vec3 pos, vec2 uv, vec4 color, sampler2D tex) {
   var FLOOR_HEIGHT = 48;
   var JUMP_FORCE = 800;
   var SPEED = 300;
-  Es();
+  Es({
+    background: [128, 128, 128]
+  });
   loadSprite("bean", "sprites/bean.png");
   loadSound("hit", "sounds/hit.mp3");
   loadSound("score", "sounds/score.mp3");
   scene("game", () => {
     let score = 0;
     let hp = 8;
+    let timeValue = 0;
+    const scoreLabel = add([
+      text("Score: " + score),
+      pos(48, 24)
+    ]);
+    const lifeLabel = add([
+      text("HP: " + hp),
+      pos(520, 24)
+    ]);
+    const timeLabel = add([
+      text("Time: " + timeValue),
+      pos(48, 96)
+    ]);
     gravity(2400);
     const player = add([
       sprite("bean"),
@@ -2767,6 +2782,16 @@ vec4 frag(vec3 pos, vec2 uv, vec4 color, sampler2D tex) {
       color(127, 200, 255),
       "wall"
     ]);
+    add([
+      rect(FLOOR_HEIGHT, height() + FLOOR_HEIGHT),
+      outline(4),
+      pos(width(), height()),
+      origin("botleft"),
+      area(),
+      solid(),
+      color(127, 200, 255),
+      "wall2"
+    ]);
     function jump() {
       if (player.grounded()) {
         player.jump(JUMP_FORCE);
@@ -2774,15 +2799,27 @@ vec4 frag(vec3 pos, vec2 uv, vec4 color, sampler2D tex) {
     }
     __name(jump, "jump");
     keyPress("space", jump);
+    keyPress("up", jump);
     mouseClick(jump);
     function spawnTree() {
+      if (score <= 25) {
+        obstacleColor = color(255, 120, 255);
+      } else if (score <= 50) {
+        obstacleColor = color(255, 140, 0);
+      } else if (score <= 100) {
+        obstacleColor = color(149, 50, 0);
+      } else if (score <= 150) {
+        obstacleColor = color(120, 255, 0);
+      } else {
+        obstacleColor = color(rand(0, 255), rand(0, 255), rand(0, 255));
+      }
       const tree = add([
         rect(48, rand(32, 96)),
         area(),
         outline(4),
         pos(width(), height() - FLOOR_HEIGHT),
         origin("botleft"),
-        color(255, 180, 255),
+        obstacleColor,
         move(LEFT, score * 2 + SPEED),
         "tree"
       ]);
@@ -2790,7 +2827,7 @@ vec4 frag(vec3 pos, vec2 uv, vec4 color, sampler2D tex) {
         destroy(tree);
         score++;
         scoreLabel.text = "Score: " + score;
-        play("hit", {
+        play("score", {
           volume: 0.5,
           detune: -1200
         });
@@ -2799,6 +2836,13 @@ vec4 frag(vec3 pos, vec2 uv, vec4 color, sampler2D tex) {
     }
     __name(spawnTree, "spawnTree");
     spawnTree();
+    function startTime() {
+      timeValue++;
+      timeLabel.text = "Time: " + timeValue;
+      wait(1, startTime);
+    }
+    __name(startTime, "startTime");
+    startTime();
     keyDown("left", () => {
       player.move(-SPEED, 0);
     });
@@ -2811,28 +2855,21 @@ vec4 frag(vec3 pos, vec2 uv, vec4 color, sampler2D tex) {
     keyDown("d", () => {
       player.move(SPEED, 0);
     });
-    player.collides("tree", () => {
+    player.collides("tree", (tree) => {
       hp -= 1;
-      play("score", {
+      play("hit", {
         volume: 0.5,
         detune: -1200
       });
       addKaboom(player.pos);
+      destroy(tree);
       lifeLabel.text = "HP: " + hp;
       if (hp == 0) {
-        go("lose", score);
+        go("lose", score, timeValue);
       }
     });
-    const scoreLabel = add([
-      text("Score: " + score),
-      pos(48, 24)
-    ]);
-    const lifeLabel = add([
-      text("HP: " + hp),
-      pos(520, 24)
-    ]);
   });
-  scene("lose", (score) => {
+  scene("lose", (score, timeValue) => {
     add([
       sprite("bean"),
       pos(width() / 2, height() / 2 - 80),
@@ -2840,7 +2877,23 @@ vec4 frag(vec3 pos, vec2 uv, vec4 color, sampler2D tex) {
       origin("center")
     ]);
     add([
-      text(score),
+      text("Punkte: " + score + "\nZeit: " + timeValue + "s"),
+      pos(width() / 2, height() / 2 + 80),
+      scale(1),
+      origin("center")
+    ]);
+    keyPress("space", () => go("game"));
+    mouseClick(() => go("game"));
+  });
+  scene("start", () => {
+    add([
+      sprite("bean"),
+      pos(width() / 2, height() / 2 - 80),
+      scale(2),
+      origin("center")
+    ]);
+    add([
+      text("Hi."),
       pos(width() / 2, height() / 2 + 80),
       scale(2),
       origin("center")
@@ -2848,6 +2901,6 @@ vec4 frag(vec3 pos, vec2 uv, vec4 color, sampler2D tex) {
     keyPress("space", () => go("game"));
     mouseClick(() => go("game"));
   });
-  go("game");
+  go("start");
 })();
 //# sourceMappingURL=game.js.map
