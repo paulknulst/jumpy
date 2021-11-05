@@ -2733,16 +2733,18 @@ vec4 frag(vec3 pos, vec2 uv, vec4 color, sampler2D tex) {
   // code/main.js
   var FLOOR_HEIGHT = 48;
   var JUMP_FORCE = 800;
-  var SPEED = 300;
+  var SPEED = 390;
   Es({
     background: [128, 128, 128]
   });
   loadSprite("bean", "sprites/bean.png");
+  loadSprite("life", "sprites/apple.png");
   loadSound("hit", "sounds/hit.mp3");
   loadSound("score", "sounds/score.mp3");
+  loadSound("woosh", "sounds/wooosh.mp3");
   scene("game", () => {
     let score = 0;
-    let hp = 8;
+    let hp = 3;
     let timeValue = 0;
     const scoreLabel = add([
       text("Score: " + score),
@@ -2761,7 +2763,8 @@ vec4 frag(vec3 pos, vec2 uv, vec4 color, sampler2D tex) {
       sprite("bean"),
       pos(80, 40),
       area(),
-      body()
+      body(),
+      "player"
     ]);
     add([
       rect(width(), FLOOR_HEIGHT),
@@ -2792,15 +2795,19 @@ vec4 frag(vec3 pos, vec2 uv, vec4 color, sampler2D tex) {
       color(127, 200, 255),
       "wall2"
     ]);
-    function jump() {
+    function do_jump() {
       if (player.grounded()) {
         player.jump(JUMP_FORCE);
+        play("woosh", {
+          volume: 0.5,
+          detune: -1200
+        });
       }
     }
-    __name(jump, "jump");
-    keyPress("space", jump);
-    keyPress("up", jump);
-    mouseClick(jump);
+    __name(do_jump, "do_jump");
+    keyPress("space", do_jump);
+    keyPress("up", do_jump);
+    mouseClick(do_jump);
     function spawnTree() {
       if (score <= 25) {
         obstacleColor = color(255, 120, 255);
@@ -2813,29 +2820,65 @@ vec4 frag(vec3 pos, vec2 uv, vec4 color, sampler2D tex) {
       } else {
         obstacleColor = color(rand(0, 255), rand(0, 255), rand(0, 255));
       }
+      amount = rand(0.1, 3);
+      if (score * 2 > 100) {
+        speed = SPEED + 100;
+      } else {
+        speed = SPEED + score * 2;
+      }
+      up = rand(1, 100);
+      if (up > 75) {
+        yCoord = height() - FLOOR_HEIGHT - 80;
+      } else {
+        yCoord = height() - FLOOR_HEIGHT;
+      }
       const tree = add([
-        rect(48, rand(32, 96)),
+        rect(48 * amount, rand(32, 96)),
         area(),
         outline(4),
-        pos(width(), height() - FLOOR_HEIGHT),
+        pos(width(), yCoord),
         origin("botleft"),
         obstacleColor,
-        move(LEFT, score * 2 + SPEED),
+        move(LEFT, speed),
         "tree"
       ]);
       tree.collides("wall", () => {
         destroy(tree);
         score++;
         scoreLabel.text = "Score: " + score;
+      });
+      wait(rand(0.7, 1.5), spawnTree);
+    }
+    __name(spawnTree, "spawnTree");
+    spawnTree();
+    function spawnLife() {
+      if (score * 5 + SPEED > 800) {
+        speed = 800;
+      } else {
+        speed = score * 5 + SPEED;
+      }
+      const life = add([
+        sprite("life"),
+        area(),
+        outline(3),
+        pos(width(), height() - FLOOR_HEIGHT - 110),
+        origin("botleft"),
+        move(LEFT, speed),
+        "life"
+      ]);
+      life.collides("player", () => {
+        hp += 3;
         play("score", {
           volume: 0.5,
           detune: -1200
         });
+        destroy(life);
+        lifeLabel.text = "HP: " + hp;
       });
-      wait(rand(0.5, 1.5), spawnTree);
+      wait(rand(45, 60), spawnLife);
     }
-    __name(spawnTree, "spawnTree");
-    spawnTree();
+    __name(spawnLife, "spawnLife");
+    spawnLife();
     function startTime() {
       timeValue++;
       timeLabel.text = "Time: " + timeValue;
